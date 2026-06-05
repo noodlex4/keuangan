@@ -1,4 +1,4 @@
-name: Ubah HTML Jadi APK (Java 21 Fix)
+name: Ubah HTML Jadi APK (Final Fix)
 
 on:
   workflow_dispatch:
@@ -16,10 +16,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: 3. Siapkan Java 21 (Wajib untuk Android Modern)
+      - name: 3. Siapkan Java 17 (Wajib untuk Gradle Capacitor)
         uses: actions/setup-java@v4
         with:
-          java-version: '21' # Kita upgrade ke versi 21
+          java-version: '17' # Kita turunkan lagi ke 17 agar pas dengan sistemnya
           distribution: 'temurin'
 
       - name: 4. Amankan File HTML & CSS ke Folder Bersih
@@ -45,13 +45,14 @@ jobs:
       - name: 7. Rakit Sistem Android & Sinkronisasi
         run: |
           npx cap add android
-          npx cap sync android # Memastikan file HTML/CSS terkunci di sistem Android
+          npx cap sync android
 
       - name: 8. Compile Jadi File APK
+        # Kita tambahkan --no-daemon biar server rakitnya pelan tapi pasti tanpa putus tengah jalan
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
       - name: 9. Kirim File APK ke HP
         uses: actions/upload-artifact@v4
