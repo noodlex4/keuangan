@@ -1,4 +1,4 @@
-name: Ubah HTML Jadi APK (Fixed)
+name: Ubah HTML Jadi APK (Java 21 Fix)
 
 on:
   workflow_dispatch:
@@ -16,14 +16,13 @@ jobs:
         with:
           node-version: 20
 
-      - name: 3. Siapkan Java
+      - name: 3. Siapkan Java 21 (Wajib untuk Android Modern)
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21' # Kita upgrade ke versi 21
           distribution: 'temurin'
 
       - name: 4. Amankan File HTML & CSS ke Folder Bersih
-        # Langkah ini memisahkan file kamu dari folder node_modules yang berat
         run: |
           mkdir www
           cp index.html www/ 2>/dev/null || true
@@ -36,7 +35,6 @@ jobs:
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
       - name: 6. Buat Konfigurasi Aplikasi
-        # Membuat file settingan otomatis tanpa memicu pertanyaan interaktif di server
         run: |
           echo '{
             "appId": "com.kamu.myapp",
@@ -44,9 +42,10 @@ jobs:
             "webDir": "www"
           }' > capacitor.config.json
 
-      - name: 7. Rakit Sistem Android
+      - name: 7. Rakit Sistem Android & Sinkronisasi
         run: |
           npx cap add android
+          npx cap sync android # Memastikan file HTML/CSS terkunci di sistem Android
 
       - name: 8. Compile Jadi File APK
         run: |
