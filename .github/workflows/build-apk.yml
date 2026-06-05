@@ -1,7 +1,7 @@
-name: Ubah HTML Jadi APK
+name: Ubah HTML Jadi APK (Fixed)
 
 on:
-  workflow_dispatch: # Biar bisa diklik manual dari HP
+  workflow_dispatch:
 
 jobs:
   convert-to-apk:
@@ -11,38 +11,50 @@ jobs:
       - name: 1. Ambil Kode HTML & CSS Kamu
         uses: actions/checkout@v4
 
-      - name: 2. Siapkan Node.js (Mesin Pembungkus)
+      - name: 2. Siapkan Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 3. Siapkan Java (Mesin Android)
+      - name: 3. Siapkan Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 4. Install Tool Capacitor
+      - name: 4. Amankan File HTML & CSS ke Folder Bersih
+        # Langkah ini memisahkan file kamu dari folder node_modules yang berat
+        run: |
+          mkdir www
+          cp index.html www/ 2>/dev/null || true
+          cp style.css www/ 2>/dev/null || true
+          cp *.js *.png *.jpg *.jpeg www/ 2>/dev/null || true
+
+      - name: 5. Install Tool Capacitor
         run: |
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-      - name: 5. Konfigurasi Nama Aplikasi
-        # Kamu bisa ganti "Aplikasi Webku" dengan nama aplikasi yang kamu mau
-        run: npx cap init "Aplikasi Webku" "com.kamu.myapp" --web-dir=.
+      - name: 6. Buat Konfigurasi Aplikasi
+        # Membuat file settingan otomatis tanpa memicu pertanyaan interaktif di server
+        run: |
+          echo '{
+            "appId": "com.kamu.myapp",
+            "appName": "Aplikasi Webku",
+            "webDir": "www"
+          }' > capacitor.config.json
 
-      - name: 6. Rakit Sistem Android
+      - name: 7. Rakit Sistem Android
         run: |
           npx cap add android
-          npx cap sync android
 
-      - name: 7. Compile Jadi File APK
+      - name: 8. Compile Jadi File APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: 8. Kirim File APK ke HP
+      - name: 9. Kirim File APK ke HP
         uses: actions/upload-artifact@v4
         with:
           name: Aplikasi-HTML-Kamu
