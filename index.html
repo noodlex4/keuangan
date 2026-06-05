@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keuanganku - Personal Finance Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-brand">
+            <div class="logo-icon"><i class="fa-solid fa-wallet"></i></div>
+            <div class="logo-text">
+                <h1>Keuanganku</h1>
+                <p id="currentDate">Memuat...</p>
+            </div>
+        </div>
+        <div class="header-title" id="pageTitle">Beranda</div>
+    </header>
+
+    <main>
+        <!-- PAGE: HOME -->
+        <div id="pageHome" class="page active">
+            <section class="dashboard">
+                <div class="card-balance">
+                    <p>Total Saldo Bersih</p>
+                    <h2 id="displaySaldo">Rp 0</h2>
+                </div>
+                <div class="card-stat">
+                    <div class="card-stat-header">
+                        <span class="card-stat-label label-income">Pemasukan</span>
+                    </div>
+                    <div class="card-stat-value text-income" id="displayPemasukan">Rp 0</div>
+                </div>
+                <div class="card-stat">
+                    <div class="card-stat-header">
+                        <span class="card-stat-label label-expense">Pengeluaran</span>
+                    </div>
+                    <div class="card-stat-value text-expense" id="displayPengeluaran">Rp 0</div>
+                </div>
+                <div class="card-stat">
+                    <div class="card-stat-header">
+                        <span class="card-stat-label label-savings">Tabungan</span>
+                    </div>
+                    <div class="card-stat-value text-savings" id="displayTabungan">Rp 0</div>
+                </div>
+            </section>
+            
+            <h3 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Transaksi Terakhir</h3>
+            <div class="transaction-list" id="recentTransactions"></div>
+        </div>
+
+        <!-- PAGE: GOALS -->
+        <div id="pageGoals" class="page">
+            <div class="goals-card">
+                <div class="goals-header">
+                    <h3><i class="fa-solid fa-bullseye"></i> Target Tabungan</h3>
+                </div>
+                <div class="goals-form">
+                    <div class="input-group">
+                        <input type="text" id="goalName" placeholder="Nama goal">
+                    </div>
+                    <div class="input-group">
+                        <input type="number" id="goalTarget" placeholder="Target (Rp)">
+                    </div>
+                    <button class="btn-add" onclick="addGoal()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div id="goalsList"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: HISTORY -->
+        <div id="pageHistory" class="page">
+            <h3 class="section-title"><i class="fa-solid fa-list"></i> Semua Transaksi</h3>
+            <div class="transaction-list" id="allTransactions"></div>
+        </div>
+    </main>
+
+    <button class="fab" onclick="openModal()"><i class="fa-solid fa-plus"></i></button>
+
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchPage('home')">
+            <i class="fa-solid fa-house"></i><span>Beranda</span>
+        </div>
+        <div class="nav-item" onclick="switchPage('goals')">
+            <i class="fa-solid fa-bullseye"></i><span>Goals</span>
+        </div>
+        <div class="nav-item" onclick="switchPage('history')">
+            <i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span>
+        </div>
+    </nav>
+
+    <!-- MODAL -->
+    <div id="modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Catat Transaksi</h3>
+                <button class="btn-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="formTransaksi" onsubmit="simpanData(event)">
+                <div class="type-selector">
+                    <button type="button" class="type-btn active" data-type="pengeluaran" onclick="pilihJenis('pengeluaran')">Pengeluaran</button>
+                    <button type="button" class="type-btn" data-type="pemasukan" onclick="pilihJenis('pemasukan')">Pemasukan</button>
+                    <button type="button" class="type-btn" data-type="tabungan" onclick="pilihJenis('tabungan')">Tabungan</button>
+                </div>
+                <input type="hidden" id="jenisTx" value="pengeluaran">
+                
+                <div class="form-group">
+                    <label class="form-label">Nominal (Rp)</label>
+                    <input type="number" id="nominalTx" class="form-input" placeholder="0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Kategori</label>
+                    <div class="category-grid" id="kategoriContainer"></div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tanggal</label>
+                        <input type="date" id="tglTx" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Catatan</label>
+                        <input type="text" id="catatanTx" class="form-control" placeholder="Opsional">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-submit">Simpan Transaksi</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let dataTransaksi = JSON.parse(localStorage.getItem('keuanganku_transaksi')) || [];
+        let dataGoals = JSON.parse(localStorage.getItem('keuanganku_goals')) || [];
+        let currentType = 'pengeluaran';
+        let selectedCategory = '';
+        let currentPage = 'home';
+
+        const categories = {
+            pengeluaran: [
+                {nama: 'Makanan', icon: 'fa-utensils'},
+                {nama: 'Transport', icon: 'fa-car'},
+                {nama: 'Belanja', icon: 'fa-shopping-bag'},
+                {nama: 'Tagihan', icon: 'fa-file-invoice'},
+                {nama: 'Hiburan', icon: 'fa-gamepad'},
+                {nama: 'Kesehatan', icon: 'fa-user-md'},
+                {nama: 'Lainnya', icon: 'fa-ellipsis'}
+            ],
+            pemasukan: [
+                {nama: 'Gaji', icon: 'fa-money-bill-wave'},
+                {nama: 'Bonus', icon: 'fa-gift'},
+                {nama: 'Usaha', icon: 'fa-briefcase'},
+                {nama: 'Lainnya', icon: 'fa-ellipsis'}
+            ],
+            tabungan: [
+                {nama: 'Investasi', icon: 'fa-chart-line'},
+                {nama: 'Deposit', icon: 'fa-piggy-bank'},
+                {nama: 'Emergency', icon: 'fa-notes-medical'},
+                {nama: 'Lainnya', icon: 'fa-ellipsis'}
+            ]
+        };
+
+        function init() {
+            const tgl = new Date();
+            document.getElementById('currentDate').innerText = tgl.toLocaleDateString('id-ID', {weekday: 'long', day: 'numeric', month: 'short'});
+            document.getElementById('tglTx').value = new Date().toISOString().split('T')[0];
+            renderKategori();
+            renderAll();
+        }
+
+        function formatRupiah(angka) {
+            return new Intl.NumberFormat('id-ID', {style: 'currency', currency: 'IDR', maximumFractionDigits: 0}).format(angka);
+        }
+
+        function renderAll() {
+            hitungTotal();
+            renderRecentTx();
+            renderAllTx();
+            renderGoals();
+        }
+
+        function hitungTotal() {
+            let masuk = 0, keluar = 0, tabs = 0;
+            dataTransaksi.forEach(tx => {
+                if (tx.jenis === 'pemasukan') masuk += Number(tx.nominal);
+                else if (tx.jenis === 'pengeluaran') keluar += Number(tx.nominal);
+                else if (tx.jenis === 'tabungan') tabs += Number(tx.nominal);
+            });
+            let saldo = masuk - keluar - tabs;
+            document.getElementById('displayPemasukan').innerText = formatRupiah(masuk);
+            document.getElementById('displayPengeluaran').innerText = formatRupiah(keluar);
+            document.getElementById('displayTabungan').innerText = formatRupiah(tabs);
+            document.getElementById('displaySaldo').innerText = formatRupiah(saldo);
+        }
+
+        function renderRecentTx() {
+            const list = document.getElementById('recentTransactions');
+            list.innerHTML = '';
+            const recent = [...dataTransaksi].sort((a, b) => b.id - a.id).slice(0, 5);
+            if (recent.length === 0) {
+                list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>Belum ada transaksi</p></div>';
+                return;
+            }
+            recent.forEach(tx => list.appendChild(createTxElement(tx)));
+        }
+
+        function renderAllTx() {
+            const list = document.getElementById('allTransactions');
+            list.innerHTML = '';
+            const sorted = [...dataTransaksi].sort((a, b) => b.id - a.id);
+            if (sorted.length === 0) {
+                list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-receipt"></i><p>Belum ada transaksi</p></div>';
+                return;
+            }
+            sorted.forEach(tx => list.appendChild(createTxElement(tx)));
+        }
+
+        function createTxElement(tx) {
+            const div = document.createElement('div');
+            div.className = 'tx-item';
+            let colorClass = tx.jenis === 'pemasukan' ? 'icon-income' : tx.jenis === 'pengeluaran' ? 'icon-expense' : 'icon-savings';
+            let prefix = tx.jenis === 'pemasukan' ? '+' : tx.jenis === 'tabungan' ? '#' : '-';
+            div.innerHTML = `
+                <div class="tx-left">
+                    <div class="tx-icon ${colorClass}"><i class="fa-solid ${tx.icon}"></i></div>
+                    <div class="tx-details"><p>${tx.kategori}</p><p>${tx.tgl} • ${tx.catatan || '-'}</p></div>
+                </div>
+                <div class="tx-right">
+                    <span class="tx-amount ${colorClass}">${prefix}${formatRupiah(tx.nominal)}</span>
+                    <button class="tx-delete" onclick="hapusTx(${tx.id})"><i class="fa-solid fa-trash"></i></button>
+                </div>`;
+            return div;
+        }
+
+        function renderGoals() {
+            const list = document.getElementById('goalsList');
+            list.innerHTML = '';
+            if (dataGoals.length === 0) {
+                list.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">Belum ada target tabungan</p>';
+                return;
+            }
+            dataGoals.forEach((goal, idx) => {
+                let prog = Math.min(100, Math.round((goal.progress / goal.target) * 100));
+                const div = document.createElement('div');
+                div.className = 'goal-item';
+                div.innerHTML = `
+                    <div class="goal-top">
+                        <span class="goal-name">${goal.nama}</span>
+                        <button class="btn-delete-goal" onclick="hapusGoal(${idx})"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="goal-progress-bar"><div class="goal-progress-fill" style="width: ${prog}%"></div></div>
+                    <div style="display:flex;justify-content:space-between;">
+                        <span class="goal-percent">${prog}%</span>
+                        <span class="goal-amount">${formatRupiah(goal.progress)} / ${formatRupiah(goal.target)}</span>
+                    </div>`;
+                list.appendChild(div);
+            });
+        }
+
+        function renderKategori() {
+            const container = document.getElementById('kategoriContainer');
+            container.innerHTML = '';
+            selectedCategory = '';
+            categories[currentType].forEach(kat => {
+                const el = document.createElement('div');
+                el.className = 'category-item';
+                el.onclick = () => selectCategory(kat.nama, kat.icon, el);
+                el.innerHTML = `<i class="fa-solid ${kat.icon}"></i><span>${kat.nama}</span>`;
+                container.appendChild(el);
+            });
+        }
+
+        function selectCategory(nama, icon, element) {
+            document.querySelectorAll('.category-item').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedCategory = {nama, icon};
+        }
+
+        function pilihJenis(jenis) {
+            currentType = jenis;
+            document.getElementById('jenisTx').value = jenis;
+            document.querySelectorAll('.type-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.type === jenis) btn.classList.add('active');
+            });
+            renderKategori();
+        }
+
+        function switchPage(page) {
+            currentPage = page;
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            const index = page === 'home' ? 0 : page === 'goals' ? 1 : 2;
+            document.querySelectorAll('.nav-item')[index].classList.add('active');
+            const titles = {home: 'Beranda', goals: 'Target Tabungan', history: 'Riwayat Transaksi'};
+            document.getElementById('pageTitle').innerText = titles[page];
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1)).classList.add('active');
+            renderAll();
+        }
+
+        function openModal() {
+            document.getElementById('modal').classList.add('active');
+            document.getElementById('nominalTx').focus();
+            renderKategori();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('formTransaksi').reset();
+            selectedCategory = '';
+        }
+
+        function simpanData(e) {
+            e.preventDefault();
+            const nominal = Number(document.getElementById('nominalTx').value);
+            const tgl = document.getElementById('tglTx').value;
+            const catatan = document.getElementById('catatanTx').value;
+            if (!selectedCategory) { alert('Pilih kategori!'); return; }
+            
+            const txBaru = {id: Date.now(), nominal, jenis: currentType, kategori: selectedCategory.nama, icon: selectedCategory.icon, tgl, catatan};
+            dataTransaksi.push(txBaru);
+            localStorage.setItem('keuanganku_transaksi', JSON.stringify(dataTransaksi));
+            
+            if (currentType === 'tabungan' && dataGoals.length > 0) {
+                dataGoals[0].progress += nominal;
+                localStorage.setItem('keuanganku_goals', JSON.stringify(dataGoals));
+            }
+            closeModal();
+            renderAll();
+        }
+
+        function hapusTx(id) {
+            if (confirm('Hapus transaksi?')) {
+                dataTransaksi = dataTransaksi.filter(tx => tx.id !== id);
+                localStorage.setItem('keuanganku_transaksi', JSON.stringify(dataTransaksi));
+                renderAll();
+            }
+        }
+
+        function addGoal() {
+            const nama = document.getElementById('goalName').value;
+            const target = Number(document.getElementById('goalTarget').value);
+            if (!nama || !target) { alert('Masukkan nama dan target!'); return; }
+            dataGoals.push({nama, target, progress: 0});
+            localStorage.setItem('keuanganku_goals', JSON.stringify(dataGoals));
+            document.getElementById('goalName').value = '';
+            document.getElementById('goalTarget').value = '';
+            renderGoals();
+        }
+
+        function hapusGoal(idx) {
+            if (confirm('Hapus goal?')) {
+                dataGoals.splice(idx, 1);
+                localStorage.setItem('keuanganku_goals', JSON.stringify(dataGoals));
+                renderGoals();
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
